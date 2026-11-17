@@ -4,6 +4,7 @@ import Quickshell.Io
 import qs.Commons
 import qs.Ui
 import "AgendaModel.js" as AgendaModel
+import "I18n.js" as I18n
 
 Panel {
     id: root
@@ -19,7 +20,8 @@ Panel {
     property var events: []
     property var groups: []
     property string dataState: "loading"
-    property string dataMessage: "Loading calendar data..."
+    property string dataErrorKey: ""
+    property string dataMessage: tr("loadingData")
     property string cacheGeneratedAt: ""
     property string cacheRangeStart: ""
     property string cacheRangeEnd: ""
@@ -30,9 +32,18 @@ Panel {
         "showCalendar": true,
         "showLocation": true,
         "timeFormat": "24",
+        "language": "auto",
         "accounts": {},
         "calendars": {}
     })
+    readonly property string systemLocale: Qt.locale().name
+        || Quickshell.env("LC_ALL")
+        || Quickshell.env("LC_MESSAGES")
+        || Quickshell.env("LANG")
+    readonly property string activeLang: I18n.resolveLanguage(
+        preferences.language,
+        systemLocale
+    )
     property var accountOptions: []
     property var calendarOptions: []
     property alias onboarding: onboardingService
@@ -43,12 +54,27 @@ Panel {
     readonly property color contentBackground: Color.background
     readonly property color mutedForeground: Qt.rgba(contentForeground.r, contentForeground.g, contentForeground.b, 0.58)
     readonly property color accentForeground: Color.accent
-    readonly property string title: AgendaModel.viewTitle(viewMode, anchorDate)
+    readonly property string title: AgendaModel.viewTitle(viewMode, anchorDate, activeLang)
     readonly property string rangeAvailability: availabilityFor(viewMode, anchorDate)
     readonly property string syncSummary: cacheGeneratedAt && cacheRangeEnd
-        ? "Synced " + AgendaModel.timeLabel(cacheGeneratedAt, true)
-            + "  •  Through " + AgendaModel.shortDate(cacheRangeEnd)
+        ? tr("syncedAt", {
+            "time": AgendaModel.timeLabel(cacheGeneratedAt, root.preferences.timeFormat === "12"),
+            "date": AgendaModel.shortDate(cacheRangeEnd, root.activeLang)
+        })
         : ""
+
+    function tr(key, vars) {
+        return I18n.t(root.activeLang, key, vars)
+    }
+
+    function reloadLanguage() {
+        if (root.dataErrorKey) {
+            root.dataMessage = root.tr(root.dataErrorKey)
+        } else if (root.dataState === "loading") {
+            root.dataMessage = root.tr("loadingData")
+        }
+        cacheFile.reload()
+    }
 
     onOpenedChanged: if (opened) {
         Qt.callLater(function() { keyCatcher.forceActiveFocus() })
@@ -65,17 +91,19 @@ Panel {
             )
             root.clearEvents()
             root.dataState = "error"
-            root.dataMessage = "Calendar data is unavailable. Run a sync to refresh it."
+            root.dataErrorKey = "errorUnavailable"
+            root.dataMessage = root.tr("errorUnavailable")
             return
         }
         var cache
         try {
-            cache = AgendaModel.parseCache(data)
+            cache = AgendaModel.parseCache(data, root.activeLang)
         } catch (error) {
             console.error("calendar cache is invalid:", error.message)
             root.clearEvents()
             root.dataState = "error"
-            root.dataMessage = "Calendar data is incompatible or incomplete. Run a sync to refresh it."
+            root.dataErrorKey = "errorIncompatible"
+            root.dataMessage = root.tr("errorIncompatible")
             return
         }
         root.events = cache.events
@@ -85,7 +113,8 @@ Panel {
         if (new Date(root.cacheRangeEnd) <= new Date()) {
             root.clearEvents()
             root.dataState = "error"
-            root.dataMessage = "Calendar data has expired. Run a sync to refresh it."
+            root.dataErrorKey = "errorExpired"
+            root.dataMessage = root.tr("errorExpired")
             return
         }
         root.accountOptions = cache.accounts.slice().sort(function(a, b) {
@@ -98,6 +127,7 @@ Panel {
             return accountOrder !== 0 ? accountOrder : a.name.localeCompare(b.name)
         })
         root.dataState = "ready"
+        root.dataErrorKey = ""
         root.dataMessage = ""
         rebuild()
     }
@@ -140,6 +170,8 @@ Panel {
             "showCalendar": value.showCalendar !== false,
             "showLocation": value.showLocation !== false,
             "timeFormat": value.timeFormat === "12" ? "12" : "24",
+            "language": (value.language === "pt-BR" || value.language === "en")
+                ? value.language : "auto",
             "accounts": accounts && typeof accounts === "object"
                 && !(accounts instanceof Array) ? accounts : {},
             "calendars": calendars && typeof calendars === "object"
@@ -164,7 +196,12 @@ Panel {
             return root.preferenceEnabled(root.preferences.accounts, event.accountId)
                 && root.calendarEnabled(event)
         })
-        root.groups = AgendaModel.groupedEvents(visible, root.viewMode, root.anchorDate)
+        root.groups = AgendaModel.groupedEvents(
+            visible,
+            root.viewMode,
+            root.anchorDate,
+            root.activeLang
+        )
     }
 
     function availabilityFor(mode, anchor) {
@@ -247,6 +284,7 @@ Panel {
 
     OnboardingService {
         id: onboardingService
+        lang: root.activeLang
         onCacheChanged: cacheFile.reload()
     }
 
@@ -260,7 +298,8 @@ Panel {
         onLoadFailed: {
             root.clearEvents()
             root.dataState = "error"
-            root.dataMessage = "No calendar data is available. Run a sync to refresh it."
+            root.dataErrorKey = "errorNoData"
+            root.dataMessage = root.tr("errorNoData")
         }
     }
 
@@ -333,7 +372,7 @@ Panel {
                         anchors.left: parent.left
                         anchors.leftMargin: Style.space(32)
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "CALENDAR AGENDA"
+                        text: root.tr("appTitle")
                         color: root.contentForeground
                         font.family: Style.font.family
                         font.pixelSize: Style.font.bodySmall
@@ -345,7 +384,7 @@ Panel {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
                         iconText: "󰒓"
-                        tooltipText: "Calendar settings"
+                        tooltipText: root.tr("settingsTooltip")
                         bordered: true
                         horizontalPadding: Style.space(7)
                         verticalPadding: Style.space(4)
@@ -356,8 +395,8 @@ Panel {
                         anchors.right: settingsButton.left
                         anchors.rightMargin: Style.space(6)
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "Today"
-                        tooltipText: "Return to today"
+                        text: root.tr("today")
+                        tooltipText: root.tr("todayTooltip")
                         bordered: true
                         horizontalPadding: Style.space(8)
                         verticalPadding: Style.space(4)
@@ -384,7 +423,9 @@ Panel {
                             Text {
                                 textFormat: Text.PlainText
                                 anchors.centerIn: parent
-                                text: modelData.toUpperCase()
+                                text: modelData === "day"
+                                    ? root.tr("modeDay")
+                                    : (modelData === "week" ? root.tr("modeWeek") : root.tr("modeMonth"))
                                 color: root.viewMode === modelData ? root.accentForeground : root.mutedForeground
                                 font.family: Style.font.family
                                 font.pixelSize: Style.font.bodySmall
@@ -458,13 +499,25 @@ Panel {
                     wrapMode: Text.Wrap
                 }
 
+                Button {
+                    visible: root.dataState === "error" && onboardingService.accounts.length > 0
+                    text: onboardingService.busy
+                        ? root.tr("serviceSyncing")
+                        : root.tr("settingsSyncNow")
+                    bordered: true
+                    enabled: !onboardingService.busy
+                    horizontalPadding: Style.space(10)
+                    verticalPadding: Style.space(5)
+                    onClicked: onboardingService.syncNow()
+                }
+
                 Text {
                     textFormat: Text.PlainText
                     visible: root.dataState === "ready" && root.syncSummary !== ""
                     width: parent.width
                     text: root.syncSummary
                         + (root.rangeAvailability === "partial-end"
-                            ? "\nThis view continues beyond the cached range." : "")
+                            ? root.tr("partialEndNotice") : "")
                     color: root.rangeAvailability === "partial-end"
                         ? root.accentForeground : root.mutedForeground
                     font.family: Style.font.family
@@ -559,10 +612,10 @@ Panel {
                             visible: root.dataState === "ready" && root.groups.length === 0
                             width: parent.width
                             text: root.rangeAvailability === "partial-end"
-                                ? "No events in the cached portion of this range."
+                                ? root.tr("emptyPartialEnd")
                                 : (root.rangeAvailability === "partial-start"
-                                    ? "No upcoming events in this range."
-                                    : "No events in this range.")
+                                    ? root.tr("emptyPartialStart")
+                                    : root.tr("emptyRange"))
                             color: root.mutedForeground
                             font.family: Style.font.family
                             font.pixelSize: Style.font.body

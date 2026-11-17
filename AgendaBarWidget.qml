@@ -59,7 +59,7 @@ BarWidget {
         bar: root.bar
         text: "󰃭"
         slotSize: Style.bar.statusSlot
-        tooltipText: "Calendar agenda"
+        tooltipText: panelLoader.item ? panelLoader.item.tr("widgetTooltip") : "Calendar agenda"
 
         onPressed: function(button) {
             if (button === Qt.LeftButton) root.toggle()

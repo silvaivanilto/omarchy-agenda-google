@@ -19,7 +19,7 @@ Column {
             textFormat: Text.PlainText
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            text: "󰃭  CALENDAR AGENDA"
+            text: "󰃭  " + root.panel.tr("appTitle")
             color: root.panel.contentForeground
             font.family: Style.font.family
             font.pixelSize: Style.font.body
@@ -32,7 +32,7 @@ Column {
     Text {
         textFormat: Text.PlainText
         width: parent.width
-        text: "Bring your day into focus"
+        text: root.panel.tr("onboardingHeadline")
         color: root.panel.contentForeground
         font.family: Style.font.family
         font.pixelSize: Style.font.title
@@ -44,7 +44,7 @@ Column {
     Text {
         textFormat: Text.PlainText
         width: parent.width
-        text: "Connect Google Calendar to see your day, week, and month. Calendar Agenda requests read-only access, stores tokens in Secret Service, and keeps event data on this computer."
+        text: root.panel.tr("onboardingBody")
         color: root.panel.mutedForeground
         font.family: Style.font.family
         font.pixelSize: Style.font.body
@@ -68,7 +68,7 @@ Column {
             id: privacyText
             anchors.fill: parent
             anchors.margins: Style.space(10)
-            text: "READ-ONLY  •  LOCAL CACHE  •  EASY TO DISCONNECT"
+            text: root.panel.tr("onboardingBadges")
             color: root.panel.accentForeground
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
@@ -86,7 +86,7 @@ Column {
         textFormat: Text.PlainText
         text: !root.onboarding.configured
             ? root.onboarding.configurationError
-            : "Secret Service is unavailable. Install secret-tool and unlock a Secret Service provider before connecting."
+            : root.panel.tr("onboardingSecretUnavailable")
         color: root.panel.accentForeground
         font.family: Style.font.family
         font.pixelSize: Style.font.bodySmall
@@ -108,7 +108,7 @@ Column {
 
     Button {
         anchors.horizontalCenter: parent.horizontalCenter
-        text: root.onboarding.busy ? "Waiting for Google…" : "Connect Google Calendar"
+        text: root.onboarding.busy ? root.panel.tr("onboardingConnecting") : root.panel.tr("onboardingConnect")
         bordered: true
         enabled: root.onboarding.configured
             && root.onboarding.secretServiceAvailable
@@ -120,7 +120,20 @@ Column {
 
     Button {
         anchors.horizontalCenter: parent.horizontalCenter
-        text: "Privacy details"
+        visible: !root.onboarding.configured
+            || !root.onboarding.secretServiceAvailable
+            || root.onboarding.lastError !== ""
+        text: root.panel.tr("onboardingRetry")
+        bordered: true
+        enabled: !root.onboarding.busy
+        horizontalPadding: Style.space(12)
+        verticalPadding: Style.space(5)
+        onClicked: root.onboarding.refresh()
+    }
+
+    Button {
+        anchors.horizontalCenter: parent.horizontalCenter
+        text: root.panel.tr("onboardingPrivacy")
         bordered: false
         horizontalPadding: Style.space(8)
         verticalPadding: Style.space(3)
@@ -132,7 +145,7 @@ Column {
     Text {
         textFormat: Text.PlainText
         width: parent.width
-        text: "You can add more accounts or remove access at any time from Settings. Removing an account never deletes calendars or events from Google."
+        text: root.panel.tr("onboardingFooter")
         color: root.panel.mutedForeground
         font.family: Style.font.family
         font.pixelSize: Style.font.caption

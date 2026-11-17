@@ -18,6 +18,8 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any, Callable
 
+from .i18n import msg as _msg
+
 
 AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
@@ -95,8 +97,12 @@ class SecretToolStore:
             raise SecretServiceError(f"cannot run secret-tool: {error}") from error
         if result.returncode != 0:
             raise SecretServiceError(
-                "Secret Service rejected the Google refresh token; "
-                "no plaintext fallback is available"
+                _msg(
+                    "Secret Service rejected the Google refresh token; "
+                    "no plaintext fallback is available",
+                    "O Secret Service rejeitou o token de atualização do Google; "
+                    "nenhum fallback em texto plano está disponível",
+                )
             )
 
     def load(self, account_id: str) -> str:
@@ -349,9 +355,37 @@ class _CallbackHandler(BaseHTTPRequestHandler):
                 "error": values.get("error", ["missing authorization response"])[0]
             }
         self._result_queue.put(result)
-        body = b"Authorization received. You can close this window."
+        has_error = "error" in result
+        title = _msg("Google Calendar — Omarchy", "Google Calendar — Omarchy")
+        heading = _msg(
+            "Authorization not completed" if has_error else "Authorization received",
+            "Autorização não concluída" if has_error else "Autorização recebida",
+        )
+        detail = _msg(
+            "You can close this tab and return to Omarchy."
+            if has_error
+            else "All set! You can close this tab and return to Omarchy.",
+            "Você pode fechar esta aba e voltar para o Omarchy."
+            if has_error
+            else "Tudo certo! Você pode fechar esta aba e voltar para o Omarchy.",
+        )
+        html = (
+            "<!doctype html><html><head><meta charset='utf-8'>"
+            f"<title>{title}</title>"
+            "<style>"
+            ":root{color-scheme:light dark;font-family:system-ui,-apple-system,sans-serif;}"
+            "body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;}"
+            "main{max-width:420px;text-align:center;padding:28px 24px;border-radius:12px;"
+            "border:1px solid color-mix(in srgb,currentColor 18%,transparent);}"
+            "h1{margin:0 0 8px;font-size:20px;}"
+            "p{margin:0;opacity:.78;line-height:1.45;font-size:14px;}"
+            "</style></head><body><main>"
+            f"<h1>{heading}</h1><p>{detail}</p>"
+            "</main></body></html>"
+        )
+        body = html.encode("utf-8")
         self.send_response(HTTPStatus.OK)
-        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -374,15 +408,35 @@ def authorize(client_id: str, client_secret: str) -> tuple[str, OAuthToken]:
     thread.start()
     try:
         if not webbrowser.open(authorization_url(client_id, redirect_uri, state, challenge)):
-            raise OAuthError("could not open a browser for Google authorization")
+            raise OAuthError(
+                _msg(
+                    "could not open a browser for Google authorization",
+                    "não foi possível abrir o navegador para autorização do Google",
+                )
+            )
         try:
             result = result_queue.get(timeout=300)
         except queue.Empty as error:
-            raise OAuthError("timed out waiting for the Google authorization callback") from error
+            raise OAuthError(
+                _msg(
+                    "timed out waiting for the Google authorization callback",
+                    "tempo esgotado aguardando o retorno da autorização do Google",
+                )
+            ) from error
         if result.get("state") != state:
-            raise OAuthError("Google authorization state did not match")
+            raise OAuthError(
+                _msg(
+                    "Google authorization state did not match",
+                    "o estado de autorização do Google não corresponde",
+                )
+            )
         if "error" in result:
-            raise OAuthError(f"Google authorization failed: {result['error']}")
+            raise OAuthError(
+                _msg(
+                    f"Google authorization failed: {result['error']}",
+                    f"falha na autorização do Google: {result['error']}",
+                )
+            )
         return exchange_code(
             client_id,
             client_secret,

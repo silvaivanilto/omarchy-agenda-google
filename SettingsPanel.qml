@@ -38,7 +38,7 @@ Flickable {
                 textFormat: Text.PlainText
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
-                text: "SETTINGS"
+                text: panel.tr("settingsTitle")
                 color: panel.contentForeground
                 font.family: Style.font.family
                 font.pixelSize: Style.font.title
@@ -47,7 +47,7 @@ Flickable {
 
             Button {
                 anchors.right: parent.right
-                text: "Done"
+                text: panel.tr("settingsDone")
                 bordered: true
                 horizontalPadding: Style.space(8)
                 verticalPadding: Style.space(4)
@@ -58,7 +58,7 @@ Flickable {
 
         Text {
             textFormat: Text.PlainText
-            text: "CONNECTED ACCOUNTS"
+            text: panel.tr("settingsAccounts")
             color: panel.accentForeground
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
@@ -79,7 +79,7 @@ Flickable {
 
         Button {
             visible: onboarding.localRemovalAccountId !== ""
-            text: "Remove locally anyway"
+            text: panel.tr("settingsRemoveLocally")
             bordered: true
             enabled: !onboarding.busy
             horizontalPadding: Style.space(8)
@@ -92,7 +92,7 @@ Flickable {
             spacing: Style.space(6)
 
             Button {
-                text: onboarding.busy ? "Working…" : "Add account"
+                text: onboarding.busy ? panel.tr("settingsWorking") : panel.tr("settingsAddAccount")
                 bordered: true
                 enabled: onboarding.configured && onboarding.secretServiceAvailable && !onboarding.busy
                 horizontalPadding: Style.space(8)
@@ -101,7 +101,7 @@ Flickable {
             }
 
             Button {
-                text: "Sync now"
+                text: panel.tr("settingsSyncNow")
                 bordered: true
                 enabled: !onboarding.busy && onboarding.accounts.length > 0
                 horizontalPadding: Style.space(8)
@@ -142,7 +142,7 @@ Flickable {
                         textFormat: Text.PlainText
                         visible: modelData.legacy === true
                         width: parent.width
-                        text: "Reconnect once to finish account migration."
+                        text: panel.tr("settingsLegacyReconnect")
                         color: panel.accentForeground
                         font.family: Style.font.family
                         font.pixelSize: Style.font.caption
@@ -153,7 +153,7 @@ Flickable {
                         visible: modelData.state === "needs-attention"
                         width: parent.width
                         textFormat: Text.PlainText
-                        text: "Needs attention  ·  " + String(modelData.lastError || "Reconnect this account.")
+                        text: panel.tr("settingsNeedsAttention") + String(modelData.lastError || panel.tr("settingsReconnectPrompt"))
                         color: panel.accentForeground
                         font.family: Style.font.family
                         font.pixelSize: Style.font.caption
@@ -165,7 +165,7 @@ Flickable {
                         visible: root.pendingRemovalId !== modelData.id
 
                         Button {
-                            text: "Reconnect"
+                            text: panel.tr("settingsReconnect")
                             bordered: true
                             enabled: !onboarding.busy
                             horizontalPadding: Style.space(7)
@@ -174,7 +174,7 @@ Flickable {
                         }
 
                         Button {
-                            text: "Remove"
+                            text: panel.tr("settingsRemove")
                             bordered: true
                             enabled: !onboarding.busy
                             horizontalPadding: Style.space(7)
@@ -187,7 +187,7 @@ Flickable {
                         textFormat: Text.PlainText
                         visible: root.pendingRemovalId === modelData.id
                         width: parent.width
-                        text: "Remove this plugin’s access and cached events? Nothing in Google Calendar will be deleted."
+                        text: panel.tr("settingsRemoveConfirmText")
                         color: panel.contentForeground
                         font.family: Style.font.family
                         font.pixelSize: Style.font.caption
@@ -199,7 +199,7 @@ Flickable {
                         visible: root.pendingRemovalId === modelData.id
 
                         Button {
-                            text: "Confirm remove"
+                            text: panel.tr("settingsConfirmRemove")
                             bordered: true
                             enabled: !onboarding.busy
                             horizontalPadding: Style.space(7)
@@ -211,7 +211,7 @@ Flickable {
                         }
 
                         Button {
-                            text: "Cancel"
+                            text: panel.tr("settingsCancel")
                             bordered: true
                             enabled: !onboarding.busy
                             horizontalPadding: Style.space(7)
@@ -225,7 +225,7 @@ Flickable {
 
         Text {
             textFormat: Text.PlainText
-            text: "DISPLAY"
+            text: panel.tr("settingsDisplay")
             color: panel.accentForeground
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
@@ -235,9 +235,9 @@ Flickable {
 
         Repeater {
             model: [
-                { "key": "showTime", "label": "Event times" },
-                { "key": "showCalendar", "label": "Calendar names" },
-                { "key": "showLocation", "label": "Locations" }
+                { "key": "showTime", "label": panel.tr("settingsShowTime") },
+                { "key": "showCalendar", "label": panel.tr("settingsShowCalendar") },
+                { "key": "showLocation", "label": panel.tr("settingsShowLocation") }
             ]
             delegate: CompactToggle {
                 required property var modelData
@@ -250,7 +250,7 @@ Flickable {
 
         Text {
             textFormat: Text.PlainText
-            text: "TIME FORMAT"
+            text: panel.tr("settingsTimeFormat")
             color: panel.accentForeground
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
@@ -260,11 +260,11 @@ Flickable {
 
         ButtonGroup {
             width: root.width
-            options: ["24-hour", "12-hour"]
-            value: panel.preferences.timeFormat === "12" ? "12-hour" : "24-hour"
+            options: [panel.tr("settings24h"), panel.tr("settings12h")]
+            value: panel.preferences.timeFormat === "12" ? panel.tr("settings12h") : panel.tr("settings24h")
             onChanged: function(value) {
                 var updated = Object.assign({}, panel.preferences)
-                updated.timeFormat = value === "12-hour" ? "12" : "24"
+                updated.timeFormat = value === panel.tr("settings12h") ? "12" : "24"
                 panel.preferences = updated
                 panel.savePreferences()
             }
@@ -272,7 +272,40 @@ Flickable {
 
         Text {
             textFormat: Text.PlainText
-            text: "CALENDARS"
+            text: panel.tr("settingsLanguage")
+            color: panel.accentForeground
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+            font.bold: true
+            font.letterSpacing: 1.2
+        }
+
+        ButtonGroup {
+            width: root.width
+            options: [
+                panel.tr("settingsLangAuto"),
+                panel.tr("settingsLangPt"),
+                panel.tr("settingsLangEn")
+            ]
+            value: panel.preferences.language === "pt-BR"
+                ? panel.tr("settingsLangPt")
+                : (panel.preferences.language === "en"
+                    ? panel.tr("settingsLangEn")
+                    : panel.tr("settingsLangAuto"))
+            onChanged: function(value) {
+                var updated = Object.assign({}, panel.preferences)
+                if (value === panel.tr("settingsLangPt")) updated.language = "pt-BR"
+                else if (value === panel.tr("settingsLangEn")) updated.language = "en"
+                else updated.language = "auto"
+                panel.preferences = updated
+                panel.savePreferences()
+                panel.reloadLanguage()
+            }
+        }
+
+        Text {
+            textFormat: Text.PlainText
+            text: panel.tr("settingsCalendars")
             color: panel.accentForeground
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
@@ -300,7 +333,7 @@ Flickable {
 
         Text {
             textFormat: Text.PlainText
-            text: "ACCOUNT VISIBILITY"
+            text: panel.tr("settingsAccountVisibility")
             color: panel.accentForeground
             font.family: Style.font.family
             font.pixelSize: Style.font.caption

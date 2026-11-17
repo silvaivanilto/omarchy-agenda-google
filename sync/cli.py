@@ -22,6 +22,7 @@ from .google import (
     revoke_token,
     user_info,
 )
+from .i18n import msg as _msg
 from .locking import OperationLockError, operation_lock
 from .registry import (
     DEFAULT_REGISTRY_PATH,
@@ -254,16 +255,26 @@ def _connect_account(config: GoogleConfig, store: SecretToolStore) -> dict[str, 
     try:
         install_timer()
     except SchedulerError as error:
-        warnings.append(f"background sync could not be enabled: {error}")
+        warnings.append(
+            _msg(
+                f"background sync could not be enabled: {error}",
+                f"não foi possível ativar a sincronização em segundo plano: {error}",
+            )
+        )
     connected_accounts = load_accounts(DEFAULT_REGISTRY_PATH)
     sync_result = _sync_accounts(
         config, connected_accounts, store, known_accounts=connected_accounts
     )
     if not sync_result["ok"]:
-        warnings.append("account connected, but the first calendar sync failed")
+        warnings.append(
+            _msg(
+                "account connected, but the first calendar sync failed",
+                "conta conectada, mas a primeira sincronização falhou",
+            )
+        )
     return {
         "ok": True,
-        "message": f"Connected {account.email}",
+        "message": _msg(f"Connected {account.email}", f"Conectado: {account.email}"),
         "account": account.public_dict(),
         "warnings": warnings,
         "sync": sync_result,
@@ -317,11 +328,14 @@ def _reconnect_account(
         config, connected_accounts, store, known_accounts=connected_accounts
     )
     warnings = [] if result["ok"] else [
-        "account reconnected, but calendar synchronization failed"
+        _msg(
+            "account reconnected, but calendar synchronization failed",
+            "conta reconectada, mas a sincronização dos calendários falhou",
+        )
     ]
     return {
         "ok": True,
-        "message": f"Reconnected {replacement.email}",
+        "message": _msg(f"Reconnected {replacement.email}", f"Reconectado: {replacement.email}"),
         "account": replacement.public_dict(),
         "warnings": warnings,
         "sync": result,
@@ -351,21 +365,37 @@ def _remove_connected_account(
             config, remaining, store, known_accounts=remaining
         )
         if not result["ok"]:
-            warnings.append("account removed, but remaining accounts did not fully sync")
+            warnings.append(
+                _msg(
+                    "account removed, but remaining accounts did not fully sync",
+                    "conta removida, mas as contas restantes não sincronizaram completamente",
+                )
+            )
     elif not remaining:
         result = _sync_accounts(config, (), store, known_accounts=())
         try:
             remove_timer()
         except SchedulerError as error:
-            warnings.append(f"background sync could not be disabled: {error}")
+            warnings.append(
+                _msg(
+                    f"background sync could not be disabled: {error}",
+                    f"não foi possível desativar a sincronização em segundo plano: {error}",
+                )
+            )
     else:
         result = {"ok": False, "errors": []}
         warnings.append(
-            "account removed; remaining accounts will sync after OAuth configuration is repaired"
+            _msg(
+                "account removed; remaining accounts will sync after OAuth configuration is repaired",
+                "conta removida; as contas restantes serão sincronizadas após corrigir a configuração OAuth",
+            )
         )
     return {
         "ok": True,
-        "message": f"Removed {removed.email or removed.display_name}",
+        "message": _msg(
+            f"Removed {removed.email or removed.display_name}",
+            f"Removido: {removed.email or removed.display_name}",
+        ),
         "localOnly": local_only,
         "warnings": warnings,
         "sync": result,
@@ -450,9 +480,12 @@ def _main_locked(args: argparse.Namespace) -> int:
                 config, selected, store, known_accounts=accounts
             )
             payload["message"] = (
-                "Calendar sync completed"
+                _msg("Calendar sync completed", "Sincronização do calendário concluída")
                 if payload["ok"]
-                else "Calendar sync completed with account errors"
+                else _msg(
+                    "Calendar sync completed with account errors",
+                    "Sincronização concluída com erros de conta",
+                )
             )
         _emit(payload, json_output=structured)
         return 0 if payload.get("ok") else 1

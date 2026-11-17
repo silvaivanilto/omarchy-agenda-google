@@ -1,9 +1,11 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import "I18n.js" as I18n
 
 Item {
     id: root
+    property string lang: "en"
 
     property bool loaded: false
     property bool configured: false
@@ -84,11 +86,11 @@ Item {
     }
 
     function addAccount() {
-        runAction("add", ["--add-account"], "Waiting for Google authorization…")
+        runAction("add", ["--add-account"], I18n.t(root.lang, "serviceWaitAuth"))
     }
 
     function syncNow() {
-        runAction("sync", ["--sync", "--json"], "Synchronizing calendars…")
+        runAction("sync", ["--sync", "--json"], I18n.t(root.lang, "serviceSyncing"))
     }
 
     function reconnectAccount(accountId) {
@@ -96,7 +98,7 @@ Item {
         runAction(
             "reconnect",
             ["--reconnect-account", String(accountId)],
-            "Waiting for Google authorization…"
+            I18n.t(root.lang, "serviceWaitAuth")
         )
     }
 
@@ -104,7 +106,7 @@ Item {
         root.activeAccountId = String(accountId)
         var args = ["--remove-account", String(accountId)]
         if (localOnly === true) args.push("--local-only")
-        runAction("remove", args, "Removing Google account access…")
+        runAction("remove", args, I18n.t(root.lang, "serviceRemoving"))
     }
 
     Component.onCompleted: refresh()
@@ -129,7 +131,7 @@ Item {
             if (!parsed) {
                 root.statusError = root.cleanMessage(
                     statusStderr.text || root._statusError,
-                    "Could not read calendar connection status."
+                    I18n.t(root.lang, "serviceStatusError")
                 )
                 return
             }
@@ -141,7 +143,7 @@ Item {
             if (exitCode !== 0 && !root.configurationError) {
                 root.statusError = root.cleanMessage(
                     parsed.error || statusStderr.text || root._statusError,
-                    "Could not read calendar connection status."
+                    I18n.t(root.lang, "serviceStatusError")
                 )
             } else {
                 root.statusError = ""
@@ -173,17 +175,17 @@ Item {
                 ? String(parsed.error || parsed.message || "")
                 : root.cleanMessage(
                     actionStderr.text || root._actionError,
-                    "Calendar account action failed."
+                    I18n.t(root.lang, "serviceActionFailed")
                 )
             root.actionStatus = ok
                 ? root.cleanMessage(
                     message + (details ? " · " + details : ""),
-                    "Calendar account action completed."
+                    I18n.t(root.lang, "serviceActionCompleted")
                 )
                 : ""
             root.actionError = ok ? "" : root.cleanMessage(
                 (parsed && parsed.error) ? parsed.error : (details || message),
-                "Calendar account action failed."
+                I18n.t(root.lang, "serviceActionFailed")
             )
             if (completedAction === "remove") {
                 root.localRemovalAccountId = ok ? "" : completedAccountId

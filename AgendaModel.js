@@ -1,11 +1,34 @@
 .pragma library
 
-var DAY_NAMES = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
-var MONTH_NAMES = [
-    "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
-    "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"
-]
+var DAY_NAMES_BY_LANG = {
+    "en": ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"],
+    "pt-BR": ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"]
+}
+var MONTH_NAMES_BY_LANG = {
+    "en": [
+        "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+        "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"
+    ],
+    "pt-BR": [
+        "JAN", "FEV", "MAR", "ABR", "MAI", "JUN",
+        "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"
+    ]
+}
+var DAY_NAMES = DAY_NAMES_BY_LANG["en"]
+var MONTH_NAMES = MONTH_NAMES_BY_LANG["en"]
 var MAX_EXPANDED_EVENT_DAYS = 32
+
+function isPt(lang) {
+    return lang === "pt-BR"
+}
+
+function dayNames(lang) {
+    return DAY_NAMES_BY_LANG[isPt(lang) ? "pt-BR" : "en"]
+}
+
+function monthNames(lang) {
+    return MONTH_NAMES_BY_LANG[isPt(lang) ? "pt-BR" : "en"]
+}
 
 function pad(value) {
     return value < 10 ? "0" + value : String(value)
@@ -39,7 +62,7 @@ function timeLabel(value, twelveHour) {
     return pad(date.getHours()) + ":" + pad(date.getMinutes())
 }
 
-function normalizeEvent(event) {
+function normalizeEvent(event, lang) {
     if (!event || !event.title || !event.start) return null
     var allDay = event.allDay === true
     var start = allDay ? dateOnlyKey(event.start) : String(event.start)
@@ -57,7 +80,7 @@ function normalizeEvent(event) {
         calendarName: event.calendarName ? String(event.calendarName) : "",
         calendarColor: event.calendarColor ? String(event.calendarColor) : "",
         dateKey: allDay ? start : keyForDate(date),
-        timeLabel: allDay ? "ALL DAY" : timeLabel(start),
+        timeLabel: allDay ? (isPt(lang) ? "DIA TODO" : "ALL DAY") : timeLabel(start),
         sortTime: date.getTime()
     }
 }
@@ -101,11 +124,11 @@ function activeDateKeys(event, rangeStart, rangeEnd) {
     return keys
 }
 
-function parseEvents(data, rangeStart, rangeEnd) {
+function parseEvents(data, rangeStart, rangeEnd, lang) {
     var source = data && data.events instanceof Array ? data.events : []
     var result = []
     for (var i = 0; i < source.length; i++) {
-        var event = normalizeEvent(source[i])
+        var event = normalizeEvent(source[i], lang)
         if (!event) continue
         var dates = activeDateKeys(event, rangeStart, rangeEnd)
         for (var j = 0; j < dates.length; j++) {
@@ -117,7 +140,7 @@ function parseEvents(data, rangeStart, rangeEnd) {
     return result
 }
 
-function parseCache(data) {
+function parseCache(data, lang) {
     if (!data || typeof data !== "object" || data instanceof Array)
         throw new Error("cache root must be an object")
     if (data.schemaVersion !== 1)
@@ -188,12 +211,12 @@ function parseCache(data) {
                 || typeof rawEvent.calendarName !== "string"
                 || calendarKeys.indexOf(calendarKey(
                     rawEvent.accountId, rawEvent.calendarId)) === -1
-                || !normalizeEvent(rawEvent))
+                || !normalizeEvent(rawEvent, lang))
             throw new Error("cache contains an invalid event at index " + k)
     }
 
     return {
-        "events": parseEvents(data, rangeStart, rangeEnd),
+        "events": parseEvents(data, rangeStart, rangeEnd, lang),
         "accounts": accounts,
         "calendars": calendars,
         "generatedAt": String(data.generatedAt),
@@ -206,10 +229,13 @@ function calendarKey(accountId, calendarId) {
     return String(accountId || "") + "::" + String(calendarId || "")
 }
 
-function shortDate(value) {
+function shortDate(value, lang) {
     var date = new Date(value)
     if (isNaN(date.getTime())) return ""
-    return MONTH_NAMES[date.getMonth()] + " " + date.getDate() + ", " + date.getFullYear()
+    var months = monthNames(lang)
+    if (isPt(lang))
+        return date.getDate() + " " + months[date.getMonth()] + " " + date.getFullYear()
+    return months[date.getMonth()] + " " + date.getDate() + ", " + date.getFullYear()
 }
 
 function compareEvents(a, b) {
@@ -249,13 +275,17 @@ function rangeFor(mode, anchor) {
     return { start: start, end: end }
 }
 
-function groupLabel(key, mode, todayKey) {
-    if (mode === "day" && key === todayKey) return "TODAY"
+function groupLabel(key, mode, todayKey, lang) {
+    if (mode === "day" && key === todayKey) return isPt(lang) ? "HOJE" : "TODAY"
     var date = dateForKey(key)
-    return DAY_NAMES[date.getDay()] + " " + MONTH_NAMES[date.getMonth()] + " " + date.getDate()
+    var days = dayNames(lang)
+    var months = monthNames(lang)
+    if (isPt(lang))
+        return days[date.getDay()] + ", " + date.getDate() + " " + months[date.getMonth()]
+    return days[date.getDay()] + " " + months[date.getMonth()] + " " + date.getDate()
 }
 
-function groupedEvents(events, mode, anchor) {
+function groupedEvents(events, mode, anchor, lang) {
     var range = rangeFor(mode, anchor)
     var todayKey = keyForDate(new Date())
     var groups = {}
@@ -278,7 +308,7 @@ function groupedEvents(events, mode, anchor) {
         var key = keys[j]
         result.push({
             key: key,
-            label: groupLabel(key, mode, todayKey),
+            label: groupLabel(key, mode, todayKey, lang),
             events: sortedEvents(groups[key])
         })
     }
@@ -293,22 +323,31 @@ function moveAnchor(anchor, mode, amount) {
     return result
 }
 
-function viewTitle(mode, anchor) {
+function viewTitle(mode, anchor, lang) {
+    var months = monthNames(lang)
+    var pt = isPt(lang)
     if (mode === "month")
-        return MONTH_NAMES[anchor.getMonth()] + " " + anchor.getFullYear()
+        return months[anchor.getMonth()] + " " + anchor.getFullYear()
     if (mode === "week") {
         var range = rangeFor(mode, anchor)
         var last = new Date(range.end)
         last.setDate(last.getDate() - 1)
-        var startLabel = MONTH_NAMES[range.start.getMonth()] + " " + range.start.getDate()
-        var endLabel = MONTH_NAMES[last.getMonth()] + " " + last.getDate()
+        var startLabel = pt
+            ? range.start.getDate() + " " + months[range.start.getMonth()]
+            : months[range.start.getMonth()] + " " + range.start.getDate()
+        var endLabel = pt
+            ? last.getDate() + " " + months[last.getMonth()]
+            : months[last.getMonth()] + " " + last.getDate()
+        var yearSep = pt ? " " : ", "
         if (range.start.getFullYear() !== last.getFullYear()) {
-            startLabel += ", " + range.start.getFullYear()
-            endLabel += ", " + last.getFullYear()
+            startLabel += yearSep + range.start.getFullYear()
+            endLabel += yearSep + last.getFullYear()
         } else {
-            endLabel += ", " + last.getFullYear()
+            endLabel += yearSep + last.getFullYear()
         }
         return startLabel + " – " + endLabel
     }
-    return MONTH_NAMES[anchor.getMonth()] + " " + anchor.getDate() + ", " + anchor.getFullYear()
+    if (pt)
+        return anchor.getDate() + " " + months[anchor.getMonth()] + " " + anchor.getFullYear()
+    return months[anchor.getMonth()] + " " + anchor.getDate() + ", " + anchor.getFullYear()
 }

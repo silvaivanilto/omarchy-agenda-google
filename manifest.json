@@ -5,7 +5,7 @@
   "version": "0.2.1",
   "author": "Alex Inslee",
   "license": "MIT",
-  "description": "A private, read-only Google Calendar agenda with guided account setup.",
+  "description": "Agenda privada e somente leitura do Google Calendar com configuração guiada de contas.",
   "kinds": [
     "bar-widget"
   ],
@@ -14,8 +14,8 @@
     "barWidget": "AgendaBarWidget.qml"
   },
   "barWidget": {
-    "displayName": "Calendar agenda",
-    "description": "Connect Google accounts and browse private day, week, and month agenda views.",
+    "displayName": "Agenda do Google",
+    "description": "Conecte contas Google e veja sua agenda privada por dia, semana ou mês.",
     "category": "Productivity",
     "aliases": ["calendar", "agenda", "google-calendar"],
     "allowMultiple": false,

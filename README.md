@@ -15,7 +15,7 @@ browser. The panel follows your active Omarchy theme.
 ## Install
 
 ```bash
-omarchy plugin add https://github.com/alexinslc/omarchy-calendar-agenda.git --enable
+omarchy plugin add https://github.com/silvaivanilto/omarchy-agenda-google.git --enable
 ```
 
 Open the new calendar icon and choose **Connect Google Calendar**. Approve
